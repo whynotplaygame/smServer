@@ -129,7 +129,7 @@ func (w *wsServer) readMsLoop() {
 			log.Println("收消息出现错误", err)
 			break
 		}
-		fmt.Println("收到客户端发来的原始消息", data)
+		// fmt.Println("收到客户端发来的原始消息", data)
 		// 收到消息，解析消息，前端发过来的消息，就是json格式
 		// 1,data 解压 unzip
 		data, err = utils.UnZip(data)
@@ -153,7 +153,7 @@ func (w *wsServer) readMsLoop() {
 			}
 		}
 		// 3，data 转为body
-		fmt.Println("收到客户端发来的消息", data)
+		// fmt.Println("收到客户端发来的消息", data)
 		body := &ReqBody{}
 		jsonErr := json.Unmarshal(data, body)
 		if jsonErr != nil {

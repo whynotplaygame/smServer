@@ -8,7 +8,6 @@ import (
 	"smServer/net"
 	"smServer/server/login/model"
 	"smServer/server/login/proto"
-	"smServer/server/models"
 	"smServer/utils"
 	"time"
 )
@@ -37,7 +36,7 @@ func (a *Account) login(req *net.WsMsgReq, rsp *net.WsMsgRsp) {
 	loginRes := &proto.LoginRsp{}
 	mapstructure.Decode(req.Body.Msg, loginReq) // 将map数据转成结构
 	// username := loginReq.Username
-	user := &models.User{}
+	user := &model.User{}
 	//                        表名
 	ok, err := db.Engin.Table(user).Where("username=?", loginReq.Username).Get(user)
 	if err != nil {
