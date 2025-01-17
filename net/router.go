@@ -1,6 +1,9 @@
 package net
 
-import "strings"
+import (
+	"log"
+	"strings"
+)
 
 type HandlerFunc func(req *WsMsgReq, rsp *WsMsgRsp)
 
@@ -25,6 +28,13 @@ func (g *group) exec(name string, req *WsMsgReq, rsp *WsMsgRsp) {
 	h := g.handlerMap[name] // 获取路由函数
 	if h != nil {
 		h(req, rsp)
+	} else {
+		h = g.handlerMap["*"]
+		if h != nil {
+			h(req, rsp)
+		} else {
+			log.Println("路由未定义")
+		}
 	}
 }
 
@@ -48,6 +58,8 @@ func (r *Router) Run(req *WsMsgReq, rsp *WsMsgRsp) {
 	}
 	for _, g := range r.group {
 		if g.prefix == prefix {
+			g.exec(name, req, rsp)
+		} else if g.prefix != "*" { // 为网关的*放行
 			g.exec(name, req, rsp)
 		}
 	}
