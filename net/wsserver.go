@@ -17,15 +17,22 @@ type wsServer struct {
 	Seq          int64
 	property     map[string]interface{}
 	propertyLock sync.RWMutex // 为在写属性的时候，用的读写锁
+	needSecret   bool
 }
 
-func NewWsServer(wsConn *websocket.Conn) *wsServer {
-	return &wsServer{
-		wsConn:   wsConn,
-		outChan:  make(chan *WsMsgRsp, 1000),
-		property: make(map[string]interface{}),
-		Seq:      0,
+var cid int64
+
+func NewWsServer(wsConn *websocket.Conn, needSecret bool) *wsServer {
+	s := &wsServer{
+		wsConn:     wsConn,
+		outChan:    make(chan *WsMsgRsp, 1000),
+		property:   make(map[string]interface{}),
+		Seq:        0,
+		needSecret: needSecret,
 	}
+	cid++
+	s.SetProperty("cid", cid)
+	return s
 }
 
 // 目前 已经完成对了服务的设置
@@ -79,10 +86,10 @@ func (w *wsServer) Star() {
 }
 
 // 写数据
-func (w *wsServer) write(msg *WsMsgRsp) {
+func (w *wsServer) write(msg interface{}) {
 	fmt.Println("写消息", msg)
 	// 1,把数据转成json
-	data, err := json.Marshal(msg.Body)
+	data, err := json.Marshal(msg)
 	if err != nil {
 		log.Println("msg 2 json err:", err)
 	}
@@ -105,7 +112,7 @@ func (w *wsServer) writeMsLoop() {
 	for {
 		select {
 		case msg := <-w.outChan:
-			w.write(msg)
+			w.write(msg.Body)
 		}
 	}
 }
@@ -115,7 +122,8 @@ func (w *wsServer) readMsLoop() {
 	// 执行完，还是要走关闭通道逻辑
 	defer func() {
 		if err := recover(); err != nil {
-			log.Fatal(err)
+			//log.Fatal(err)
+			log.Println("read msg err in readloop:", err)
 			w.Close()
 		}
 	}()
@@ -138,20 +146,24 @@ func (w *wsServer) readMsLoop() {
 			continue
 		}
 		// 2,前端的消息，加密的消息，进行解密
-		secretKey, err := w.GetProperty("secretKey")
-		if err == nil {
-			// 有加密
-			key := secretKey.(string) // 将key转换成string
-			// 客户端传过来的的数据是加密，需要解密
-			d, err := utils.AesCBCDecrypt(data, []byte(key), []byte(key), openssl.ZEROS_PADDING)
-			if err != nil {
-				log.Println("数据格式有误 in readloop。", err)
-				// 出错后，发起握手
-				w.Handshake()
-			} else {
-				data = d
+
+		if w.needSecret { // 如果需要加密
+			secretKey, err := w.GetProperty("secretKey")
+			if err == nil {
+				// 有加密
+				key := secretKey.(string) // 将key转换成string
+				// 客户端传过来的的数据是加密，需要解密
+				d, err := utils.AesCBCDecrypt(data, []byte(key), []byte(key), openssl.ZEROS_PADDING)
+				if err != nil {
+					log.Println("数据格式有误 in readloop。", err)
+					// 出错后，发起握手
+					w.Handshake()
+				} else {
+					data = d
+				}
 			}
 		}
+
 		// 3，data 转为body
 		// fmt.Println("收到客户端发来的消息", data)
 		body := &ReqBody{}
