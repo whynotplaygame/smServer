@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"github.com/forgoer/openssl"
 	"github.com/gorilla/websocket"
+	"github.com/mitchellh/mapstructure"
 	"log"
 	"smServer/utils"
 	"sync"
+	"time"
 )
 
 type wsServer struct {
@@ -17,15 +19,22 @@ type wsServer struct {
 	Seq          int64
 	property     map[string]interface{}
 	propertyLock sync.RWMutex // 为在写属性的时候，用的读写锁
+	needSecret   bool
 }
 
-func NewWsServer(wsConn *websocket.Conn) *wsServer {
-	return &wsServer{
-		wsConn:   wsConn,
-		outChan:  make(chan *WsMsgRsp, 1000),
-		property: make(map[string]interface{}),
-		Seq:      0,
+var cid int64
+
+func NewWsServer(wsConn *websocket.Conn, needSecret bool) *wsServer {
+	s := &wsServer{
+		wsConn:     wsConn,
+		outChan:    make(chan *WsMsgRsp, 1000),
+		property:   make(map[string]interface{}),
+		Seq:        0,
+		needSecret: needSecret,
 	}
+	cid++
+	s.SetProperty("cid", cid)
+	return s
 }
 
 // 目前 已经完成对了服务的设置
@@ -72,17 +81,18 @@ func (w *wsServer) Push(name string, data interface{}) {
 }
 
 // 通道一旦建立，那么 收发消息 就要一直监听
-func (w *wsServer) Star() {
+func (w *wsServer) Start() {
 	// 启动读写数据的处理逻辑
 	go w.readMsLoop()
 	go w.writeMsLoop()
 }
 
 // 写数据
-func (w *wsServer) write(msg *WsMsgRsp) {
+func (w *wsServer) write(msg interface{}) {
 	fmt.Println("写消息", msg)
 	// 1,把数据转成json
-	data, err := json.Marshal(msg.Body)
+	data, err := json.Marshal(msg)
+	log.Println("服务器写数据：", string(data))
 	if err != nil {
 		log.Println("msg 2 json err:", err)
 	}
@@ -105,7 +115,7 @@ func (w *wsServer) writeMsLoop() {
 	for {
 		select {
 		case msg := <-w.outChan:
-			w.write(msg)
+			w.write(msg.Body)
 		}
 	}
 }
@@ -115,7 +125,8 @@ func (w *wsServer) readMsLoop() {
 	// 执行完，还是要走关闭通道逻辑
 	defer func() {
 		if err := recover(); err != nil {
-			log.Fatal(err)
+			//log.Fatal(err)
+			log.Println("read msg err in readloop in defer:", err)
 			w.Close()
 		}
 	}()
@@ -133,25 +144,31 @@ func (w *wsServer) readMsLoop() {
 		// 收到消息，解析消息，前端发过来的消息，就是json格式
 		// 1,data 解压 unzip
 		data, err = utils.UnZip(data)
+		log.Println("解压出的数据 in readloop：", data)
 		if err != nil {
 			log.Println("解压数据出错", err)
 			continue
 		}
 		// 2,前端的消息，加密的消息，进行解密
-		secretKey, err := w.GetProperty("secretKey")
-		if err == nil {
-			// 有加密
-			key := secretKey.(string) // 将key转换成string
-			// 客户端传过来的的数据是加密，需要解密
-			d, err := utils.AesCBCDecrypt(data, []byte(key), []byte(key), openssl.ZEROS_PADDING)
-			if err != nil {
-				log.Println("数据格式有误 in readloop。", err)
-				// 出错后，发起握手
-				w.Handshake()
-			} else {
-				data = d
+
+		if w.needSecret { // 如果需要加密
+			secretKey, err := w.GetProperty("secretKey")
+			if err == nil {
+				// 有加密
+				key := secretKey.(string) // 将key转换成string
+				log.Println("加密的key为", key, "time", time.Now().Unix())
+				// 客户端传过来的的数据是加密，需要解密
+				d, err := utils.AesCBCDecrypt(data, []byte(key), []byte(key), openssl.ZEROS_PADDING)
+				if err != nil {
+					log.Println("数据格式有误 解密失败，key:", key, "in readloop。d:", d, " error:", err)
+					// 出错后，发起握手
+					w.Handshake()
+				} else {
+					data = d
+				}
 			}
 		}
+
 		// 3，data 转为body
 		// fmt.Println("收到客户端发来的消息", data)
 		body := &ReqBody{}
@@ -159,10 +176,24 @@ func (w *wsServer) readMsLoop() {
 		if jsonErr != nil {
 			log.Println("json格式错误 in readloop ", jsonErr)
 		} else {
+			log.Println("收到的前端的数据：", string(data))
 			// 获取到前端传递的数据了，拿上数据，去具体业务进行处理
 			req := &WsMsgReq{Conn: w, Body: body}
 			rsp := &WsMsgRsp{Body: &RspBody{Name: body.Name, Seq: req.Body.Seq}}
-			w.router.Run(req, rsp) // 对rsp进行赋值，赋完值，放到respone队列
+
+			if req.Body.Name == "heartbeat" {
+				// 回心跳消息
+				h := &HeartBeat{}
+				mapstructure.Decode(req.Body.Msg, h)
+				h.STime = time.Now().UnixNano() / 1e6 // 纳秒
+				rsp.Body.Msg = h
+
+			} else { // 非心跳，走路由
+				if w.router != nil {
+					w.router.Run(req, rsp) // 对rsp进行赋值，赋完值，放到respone队列
+				}
+			}
+
 			w.outChan <- rsp
 		}
 

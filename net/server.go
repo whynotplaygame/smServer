@@ -8,14 +8,19 @@ import (
 )
 
 type server struct {
-	addr   string
-	router *Router
+	addr       string
+	router     *Router
+	needSecret bool // 网关内部，就不用加密。
 }
 
 func NewServer(addr string) *server {
 	return &server{
 		addr: addr,
 	}
+}
+
+func (s *server) NeedSecret(needSecret bool) {
+	s.needSecret = needSecret
 }
 
 func (s *server) Router(router *Router) {
@@ -54,8 +59,9 @@ func (s *server) wsHandler(w http.ResponseWriter, r *http.Request) {
 	// 客户端发消息的时候，{Name:"account.login"} 收到之后进行解析，认为要处理登录逻辑
 	//sendErr := wsConn.WriteMessage(websocket.BinaryMessage, []byte("hello niyade"))
 	//fmt.Println(sendErr)
-	wsServer := NewWsServer(wsConn)
-	wsServer.router = s.router
-	wsServer.Star()
+	wsServer := NewWsServer(wsConn, s.needSecret)
+	//wsServer.router = s.router
+	wsServer.Router(s.router)
+	wsServer.Start()
 	wsServer.Handshake()
 }

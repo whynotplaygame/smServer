@@ -3,7 +3,7 @@ package proto
 type LoginRsp struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
-	Session  string `json:"session_key"`
+	Session  string `json:"session"`
 	UId      int    `json:"uid"`
 }
 

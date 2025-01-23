@@ -10,7 +10,7 @@ const (
 type LoginHistory struct {
 	Id       int       `xorm:"id pk autoincr"` // 数据库的映射关系
 	UId      int       `xorm:"uid"`
-	CTime    time.Time `xorm:"Ctime"`
+	CTime    time.Time `xorm:"ctime"`
 	Ip       string    `xorm:"ip"`
 	State    int8      `xorm:"state"`
 	Hardware string    `xorm:"hardware"`
@@ -20,7 +20,7 @@ type LoginLast struct {
 	Id         int       `xorm:"id pk autoincr"` // 数据库的映射关系
 	UId        int       `xorm:"uid"`
 	LoginTime  time.Time `xorm:"login_time"`
-	logoutTime time.Time `xorm:"logout_time"`
+	LogoutTime time.Time `xorm:"logout_time"`
 	Session    string    `xorm:"session"`
 	Ip         string    `xorm:"ip"`
 	IsLogout   int8      `xorm:"is_logout"`

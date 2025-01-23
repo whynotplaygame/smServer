@@ -16,6 +16,7 @@ func main() {
 	//fmt.Println("host:", host)
 	//fmt.Println("port:", port)
 	s := net.NewServer(host + ":" + port)
+	s.NeedSecret(false)
 	login.Init()
 	s.Router(login.Router)
 	s.Start()

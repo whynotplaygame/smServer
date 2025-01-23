@@ -48,7 +48,7 @@ func (a *Account) login(req *net.WsMsgReq, rsp *net.WsMsgRsp) {
 		rsp.Body.Code = constant.UserNotExist
 	}
 
-	pwd := utils.Password(loginReq.Password, user.PassCode)
+	pwd := utils.Password(loginReq.Password, user.Passcode)
 
 	if pwd != user.Passwd { // 密码不正确
 		rsp.Body.Code = constant.PwdIncorrect

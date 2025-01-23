@@ -34,9 +34,9 @@ func (l *AccountLogic) Register(rq *model.RegisterReq) error {
 		user.Mtime = time.Now()
 		user.Ctime = time.Now()
 		user.Username = rq.Username
-		user.PassCode = utils.RandSeq(6)
-		user.Passwd = utils.Password(rq.Password, user.PassCode)
-		user.HardWare = rq.Hardware
+		user.Passcode = utils.RandSeq(6)
+		user.Passwd = utils.Password(rq.Password, user.Passcode)
+		user.Hardware = rq.Hardware
 		_, err = db.Engin.Table(user).Insert(user)
 		if err != nil {
 			log.Println("插入数据失败", err)

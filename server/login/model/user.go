@@ -4,10 +4,10 @@ import "time"
 
 type User struct {
 	UId      int       `xorm:"uid pk autoincr"` // 数据库的映射关系
-	Username string    `xorm:"username" valitate:"min=4,max=20,regexp=^[a-zA-Z0-9_]*$]"`
-	Passwd   string    `xorm:"Passwd" valitate:"min=1,max=30"`
-	PassCode string    `xorm:"passcode"`
-	HardWare string    `xorm:"hardware"`
+	Username string    `xorm:"username" validate:"min=4,max=20,regexp=^[a-zA-Z0-9_]*$]"`
+	Passcode string    `xorm:"passcode"`
+	Passwd   string    `xorm:"passwd" validate:"min=1,max=30"`
+	Hardware string    `xorm:"hardware"`
 	Status   int       `xorm:"status"`
 	Ctime    time.Time `xorm:"ctime"`
 	Mtime    time.Time `xorm:"mtime"`
