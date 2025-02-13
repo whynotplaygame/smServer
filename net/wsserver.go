@@ -177,8 +177,13 @@ func (w *wsServer) readMsLoop() {
 			log.Println("json格式错误 in readloop ", jsonErr)
 		} else {
 			log.Println("收到的前端的数据：", string(data))
+
+			context := &WsContext{
+				property: make(map[string]interface{}),
+			}
 			// 获取到前端传递的数据了，拿上数据，去具体业务进行处理
-			req := &WsMsgReq{Conn: w, Body: body}
+			req := &WsMsgReq{Conn: w, Body: body, Context: context}
+
 			rsp := &WsMsgRsp{Body: &RspBody{Name: body.Name, Seq: req.Body.Seq}}
 
 			if req.Body.Name == "heartbeat" {
@@ -190,6 +195,7 @@ func (w *wsServer) readMsLoop() {
 
 			} else { // 非心跳，走路由
 				if w.router != nil {
+					log.Println("路由执行:", req)
 					w.router.Run(req, rsp) // 对rsp进行赋值，赋完值，放到respone队列
 				}
 			}

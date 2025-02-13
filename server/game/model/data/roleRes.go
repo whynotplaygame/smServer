@@ -26,11 +26,11 @@ func (r *RoleRes) ToModel() interface{} {
 	p.Wood = r.Wood
 	p.Decree = r.Decree
 
-	p.GoldYield = 1
-	p.IronYield = 1
-	p.StoneYield = 1
-	p.GrainYield = 1
-	p.WoodYield = 1
+	p.GoldYield = 100
+	p.IronYield = 100
+	p.StoneYield = 100
+	p.GrainYield = 100
+	p.WoodYield = 100
 	p.DepotCapacity = 10000
 	return p
 }

@@ -4,13 +4,14 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"log"
 	"smServer/constant"
-	"smServer/db"
 	"smServer/net"
-	"smServer/server/game/gameConfig"
-	"smServer/server/game/model"
+	"smServer/server/common"
 	"smServer/server/game/model/data"
+
+	"smServer/server/game/logic"
+	"smServer/server/game/model"
+
 	"smServer/utils"
-	"time"
 )
 
 var DefaultRoleController = &RoleController{}
@@ -21,6 +22,8 @@ type RoleController struct {
 func (r *RoleController) Router(router *net.Router) {
 	g := router.Group("role")
 	g.AddRouter("enterServer", r.enterServer)
+	g.AddRouter("myProperty", r.myProperty)
+	g.AddRouter("posTagList", r.posTagList)
 }
 
 func (r *RoleController) enterServer(req *net.WsMsgReq, rsp *net.WsMsgRsp) {
@@ -45,53 +48,85 @@ func (r *RoleController) enterServer(req *net.WsMsgReq, rsp *net.WsMsgRsp) {
 		return
 	}
 	uid := claim.Uid // 获取uid
-	role := &data.Role{}
-	ok, err := db.Engin.Table(role).Where("uid = ?", uid).Get(role)
+
+	if err = logic.RoleService.EnterServer(uid, rspObj, req); err != nil {
+		rsp.Body.Code = err.(*common.MyError).Code()
+		return
+	}
+	rsp.Body.Code = constant.OK
+	rsp.Body.Msg = rspObj
+
+}
+
+func (r *RoleController) myProperty(req *net.WsMsgReq, rsp *net.WsMsgRsp) {
+	// 根据角色的id,去查询 军队，资源，建筑，城池，武将
+	ro, err := req.Conn.GetProperty("role") // 这个属性是 enterGame时，setProperty
 	if err != nil {
-		log.Println("查询角色出错", err)
-		rsp.Body.Code = constant.DBError
+		rsp.Body.Code = constant.SessionInvalid
+		return
+	}
+	rsp.Body.Seq = req.Body.Seq
+	rsp.Body.Name = req.Body.Name
+
+	role := ro.(*data.Role)
+	rspObj := &model.MyRolePropertyRsp{}
+
+	// 资源
+	rspObj.RoleRes, err = logic.RoleService.GetRoleRes(role.RId)
+	if err != nil {
+		rsp.Body.Code = err.(*common.MyError).Code()
+		return
+	}
+	// 城池
+	rspObj.Citys, err = logic.RoleCityService.GetRoleCitys(role.RId)
+	if err != nil {
+		rsp.Body.Code = err.(*common.MyError).Code()
 		return
 	}
 
-	if ok {
-		rsp.Body.Code = constant.OK
-		rsp.Body.Msg = rspObj
-
-		rid := role.RId
-
-		roleRes := &data.RoleRes{}
-		ok, err = db.Engin.Table(roleRes).Where("rid = ?", rid).Get(roleRes)
-		if err != nil {
-			log.Println("查询角色资源出错", err)
-			rsp.Body.Code = constant.DBError
-			return
-		}
-		if !ok {
-			roleRes.RId = rid
-			roleRes.Gold = gameConfig.Base.Role.Gold
-			roleRes.Decree = gameConfig.Base.Role.Decree
-			roleRes.Grain = gameConfig.Base.Role.Grain
-			roleRes.Iron = gameConfig.Base.Role.Iron
-			roleRes.Stone = gameConfig.Base.Role.Stone
-			roleRes.Wood = gameConfig.Base.Role.Wood
-			_, err = db.Engin.Table(roleRes).Insert(roleRes)
-			if err != nil {
-				log.Println("插入角色资源出错", err)
-				rsp.Body.Code = constant.DBError
-				return
-			}
-		} else {
-
-		}
-		// 数据库操作 与 业务操作，分割，所以，数据库的role等需要一个toModel转换功能
-		rspObj.RoleRes = roleRes.ToModel().(model.RoleRes) //
-		rspObj.Role = role.ToModel().(model.Role)
-		rspObj.Time = time.Now().UnixNano() / 1e6
-		token, _ := utils.Award(rid) // 利用rid 针对于角色生成token
-		rspObj.Token = token
-
-	} else {
-		rsp.Body.Code = constant.RoleNotExist
+	// 建筑
+	rspObj.MRBuilds, err = logic.RoleBuildService.GetBuilds(role.RId)
+	if err != nil {
+		rsp.Body.Code = err.(*common.MyError).Code()
 		return
 	}
+
+	// 军队
+	rspObj.Armys, err = logic.ArmyService.GetArmys(role.RId)
+	if err != nil {
+		rsp.Body.Code = err.(*common.MyError).Code()
+		return
+	}
+
+	// 武将
+	rspObj.Generals, err = logic.GeneralService.GetGenerals(role.RId)
+	if err != nil {
+		rsp.Body.Code = err.(*common.MyError).Code()
+		return
+	}
+
+	rsp.Body.Code = constant.OK
+	rsp.Body.Msg = rspObj
+}
+
+func (r *RoleController) posTagList(req *net.WsMsgReq, rsp *net.WsMsgRsp) {
+	rspObj := &model.PosTagListRsp{}
+
+	rsp.Body.Seq = req.Body.Seq
+	rsp.Body.Name = req.Body.Name
+	// 去角色属性表查询
+	ro, err := req.Conn.GetProperty("role") // 这个属性是 enterGame时，setProperty
+	if err != nil {
+		rsp.Body.Code = constant.SessionInvalid
+		return
+	}
+	rid := ro.(*data.Role).RId
+	pts, err := logic.RoleAttrService.GetTagList(rid)
+	if err != nil {
+		rsp.Body.Code = err.(*common.MyError).Code()
+		return
+	}
+	rspObj.PosTags = pts
+	rsp.Body.Code = constant.OK
+	rsp.Body.Msg = rspObj
 }

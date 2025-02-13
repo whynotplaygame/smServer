@@ -113,8 +113,8 @@ func (b *basic) Load() {
 	}
 
 	// 增加健壮性，在控制执行读取配置时，可以自定配置路径
-	len := len(os.Args)
-	if len > 1 {
+	length := len(os.Args)
+	if length > 1 {
 		dir := os.Args[1]
 		if dir != "" {
 			configPath = filepath.Join(dir, basicFile)
@@ -138,7 +138,7 @@ func (b *basic) Load() {
 	if err != nil {
 		log.Println("解析json错误：", err)
 	}
-
+	log.Println("加载Base配置成功")
 }
 
 func fileExists(filename string) bool {

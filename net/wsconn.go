@@ -1,5 +1,7 @@
 package net
 
+import "sync"
+
 // 请求的格式
 type ReqBody struct {
 	Seq   int64       `json:"seq"`  // 序号
@@ -16,10 +18,31 @@ type RspBody struct {
 	Msg  interface{} `json:"msg"`
 }
 
+type WsContext struct {
+	mutex    sync.RWMutex
+	property map[string]interface{}
+}
+
 // 封装成request 和 respone
 type WsMsgReq struct {
-	Body *ReqBody `json:"body"`
-	Conn WSConn
+	Body    *ReqBody `json:"body"`
+	Conn    WSConn
+	Context *WsContext
+}
+
+func (ws *WsContext) Set(key string, value interface{}) {
+	ws.mutex.Lock()
+	defer ws.mutex.Unlock()
+	ws.property[key] = value
+}
+func (ws *WsContext) Get(key string) interface{} {
+	ws.mutex.RLock()
+	defer ws.mutex.RUnlock()
+	value, ok := ws.property[key]
+	if ok {
+		return value
+	}
+	return nil
 }
 
 type WsMsgRsp struct {
