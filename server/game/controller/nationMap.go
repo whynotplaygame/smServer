@@ -4,6 +4,7 @@ import (
 	"smServer/constant"
 	"smServer/net"
 	"smServer/server/game/gameConfig"
+	"smServer/server/game/middleware"
 	"smServer/server/game/model"
 )
 
@@ -14,6 +15,7 @@ type nationMapController struct {
 
 func (r *nationMapController) Router(router *net.Router) {
 	g := router.Group("nationMap")
+	g.Use(middleware.Log()) // 为所有添加了日志的中间件
 	g.AddRouter("config", r.config)
 }
 

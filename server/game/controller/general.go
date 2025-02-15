@@ -5,6 +5,7 @@ import (
 	"smServer/net"
 	"smServer/server/common"
 	"smServer/server/game/logic"
+	"smServer/server/game/middleware"
 	"smServer/server/game/model"
 	"smServer/server/game/model/data"
 )
@@ -16,7 +17,8 @@ type generalController struct {
 
 func (r *generalController) Router(router *net.Router) {
 	g := router.Group("general")
-	g.AddRouter("myGenerals", r.myGenerals)
+	g.Use(middleware.Log()) // 为所有添加了日志的中间件
+	g.AddRouter("myGenerals", r.myGenerals, middleware.CheckRole())
 }
 
 func (r *generalController) myGenerals(req *net.WsMsgReq, rsp *net.WsMsgRsp) {

@@ -3,39 +3,67 @@ package net
 import (
 	"log"
 	"strings"
+	"sync"
 )
 
 type HandlerFunc func(req *WsMsgReq, rsp *WsMsgRsp)
 
+type MiddlewareFunc func(handlerFunc HandlerFunc) HandlerFunc // 原有执行方法进行包装
+
 // account   login || logou
 type group struct {
-	prefix     string // 前缀
-	handlerMap map[string]HandlerFunc
+	mutex         sync.RWMutex
+	prefix        string // 前缀
+	handlerMap    map[string]HandlerFunc
+	middlewareMap map[string][]MiddlewareFunc // 中间件,一个路由有可能多个中间件
+	middlewares   []MiddlewareFunc            // 所有中间件列表
 }
 
 // 添加处理函数的,即，websocket的处理函数
-func (g *group) AddRouter(prefix string, handlerFunc HandlerFunc) {
+func (g *group) AddRouter(prefix string, handlerFunc HandlerFunc, middleware ...MiddlewareFunc) {
+	g.mutex.RLock()
+	defer g.mutex.RUnlock()
 	g.handlerMap[prefix] = handlerFunc
+	g.middlewareMap[prefix] = middleware
+}
+
+func (g *group) Use(middleware ...MiddlewareFunc) {
+	g.middlewares = append(g.middlewares, middleware...)
 }
 
 func (r *Router) Group(prefix string) *group {
-	g := &group{prefix: prefix, handlerMap: make(map[string]HandlerFunc)}
+	g := &group{
+		prefix:        prefix,
+		handlerMap:    make(map[string]HandlerFunc),
+		middlewareMap: make(map[string][]MiddlewareFunc),
+	}
 	r.group = append(r.group, g)
 	return g
 }
 
 func (g *group) exec(name string, req *WsMsgReq, rsp *WsMsgRsp) {
-	h := g.handlerMap[name] // 获取路由函数
-	if h != nil {
-		h(req, rsp)
-	} else { // 没有匹配到
-		h = g.handlerMap["*"]
-		if h != nil {
-			h(req, rsp)
-		} else {
+	h, ok := g.handlerMap[name] // 获取路由函数
+	if !ok {                    // 没有匹配到
+		h, ok = g.handlerMap["*"]
+		if !ok {
 			log.Println("路由未定义")
 		}
 	}
+	if ok {
+		//中间件， 执行路由之前，需要执行中间件
+		for i := 0; i < len(g.middlewares); i++ {
+			h = g.middlewares[i](h)
+		}
+		mm, ok := g.middlewareMap[name]
+		if ok {
+			for i := 0; i < len(mm); i++ {
+				h = mm[i](h)
+			}
+		}
+
+		h(req, rsp)
+	}
+
 }
 
 type Router struct {

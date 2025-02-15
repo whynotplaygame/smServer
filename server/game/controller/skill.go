@@ -5,6 +5,7 @@ import (
 	"smServer/net"
 	"smServer/server/common"
 	"smServer/server/game/logic"
+	"smServer/server/game/middleware"
 	"smServer/server/game/model"
 	"smServer/server/game/model/data"
 )
@@ -16,7 +17,8 @@ type skillController struct {
 
 func (r *skillController) Router(router *net.Router) {
 	g := router.Group("skill")
-	g.AddRouter("list", r.list)
+	g.Use(middleware.Log()) // 为所有添加了日志的中间件
+	g.AddRouter("list", r.list, middleware.CheckRole())
 }
 
 func (w *skillController) list(req *net.WsMsgReq, rsp *net.WsMsgRsp) {

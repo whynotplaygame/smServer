@@ -6,6 +6,7 @@ import (
 	"smServer/constant"
 	"smServer/net"
 	"smServer/server/common"
+	"smServer/server/game/middleware"
 	"smServer/server/game/model/data"
 
 	"smServer/server/game/logic"
@@ -21,8 +22,9 @@ type RoleController struct {
 
 func (r *RoleController) Router(router *net.Router) {
 	g := router.Group("role")
+	g.Use(middleware.Log()) // 为所有添加了日志的中间件
 	g.AddRouter("enterServer", r.enterServer)
-	g.AddRouter("myProperty", r.myProperty)
+	g.AddRouter("myProperty", r.myProperty, middleware.CheckRole())
 	g.AddRouter("posTagList", r.posTagList)
 }
 
