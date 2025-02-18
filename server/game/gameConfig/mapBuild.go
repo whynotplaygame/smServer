@@ -26,7 +26,9 @@ type mapBuildConf struct {
 	cfgMap map[int8][]cfg
 }
 
-var MapBuildConf = &mapBuildConf{}
+var MapBuildConf = &mapBuildConf{
+	cfgMap: make(map[int8][]cfg),
+}
 
 const mapBuilderConfFile = "/conf/game/map_Build.json"
 
@@ -64,5 +66,25 @@ func (m *mapBuildConf) Load() {
 	if err != nil {
 		log.Println("解析json错误：", err)
 	}
+
+	for _, v := range m.Cfg {
+		_, ok := m.cfgMap[v.Type]
+		if !ok {
+			m.cfgMap[v.Type] = make([]cfg, 0)
+		} else {
+			m.cfgMap[v.Type] = append(m.cfgMap[v.Type], v)
+		}
+	}
+
 	log.Println("加载城池建筑配置成功")
+}
+
+func (m *mapBuildConf) Buildconfig(buildType int8, level int8) *cfg {
+	cfgs := m.cfgMap[buildType]
+	for _, v := range cfgs {
+		if v.Level == level {
+			return &v
+		}
+	}
+	return nil
 }

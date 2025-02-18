@@ -6,6 +6,7 @@ import (
 	"smServer/server/game/controller"
 	"smServer/server/game/gameConfig"
 	"smServer/server/game/gameConfig/general"
+	"smServer/server/game/logic"
 )
 
 var Router = &net.Router{}
@@ -24,6 +25,10 @@ func Init() {
 	general.General.Load()
 	// 加载技能配置信息
 	gameConfig.Skill.Load()
+	// 加载所有的建筑信息
+	logic.RoleBuildService.Load()
+	// 加载所有的城池信息
+	logic.RoleCityService.Load()
 
 	initRouter()
 }
