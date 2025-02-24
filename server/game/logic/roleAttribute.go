@@ -22,6 +22,31 @@ type roleAttrService struct {
 	attrs map[int]*data.RoleAttribute
 }
 
+func (r *roleAttrService) Load() {
+	ras := make([]*data.RoleAttribute, 0)
+	err := db.Engin.Table(new(data.RoleAttribute)).Find(&ras)
+	if err != nil {
+		log.Println("load role attributes err:", err)
+	}
+	//
+	for _, v := range ras {
+		r.attrs[v.RId] = v
+	}
+	//查询所有的联盟，进行匹配
+	uns := CoalitionService.ListCoalition()
+	for _, un := range uns {
+		for _, ma := range un.MemberArray {
+			ra, ok := r.attrs[ma]
+			if ok {
+				ra.UnionId = un.Id
+				r.attrs[ma] = ra
+			}
+		}
+	}
+	log.Println("load attrs:", r.attrs[2])
+	log.Println("load role attributes success")
+}
+
 func (service *roleAttrService) TryCreate(rid int, req *net.WsMsgReq) error {
 	// 根据rid查询，如果没有就创建
 	role := &data.RoleAttribute{}
@@ -32,10 +57,9 @@ func (service *roleAttrService) TryCreate(rid int, req *net.WsMsgReq) error {
 	}
 
 	if ok {
-		service.mutex.Lock()
-		defer service.mutex.Unlock()
-		service.attrs[rid] = role // 由于getProperty同样也是查询，就把这个数据缓存下来。方便
-
+		//service.mutex.Lock()
+		//defer service.mutex.Unlock()
+		//service.attrs[rid] = role // 由于getProperty同样也是查询，就把这个数据缓存下来。方便
 		return nil
 	} else {
 		// 初始化
@@ -87,4 +111,26 @@ func (service *roleAttrService) GetTagList(rid int) ([]model.PosTag, error) {
 		}
 	}
 	return posTags, nil
+}
+
+func (r *roleAttrService) Get(rid int) *data.RoleAttribute {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+	ra, OK := r.attrs[rid]
+	if OK {
+		return ra
+	}
+	return nil
+
+}
+
+func (r *roleAttrService) GetUnion(rid int) int {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+	ram, ok := r.attrs[rid]
+	log.Println("rid unionID", rid, ram.UnionId)
+	if ok {
+		return ram.UnionId
+	}
+	return 0
 }

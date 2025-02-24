@@ -57,9 +57,8 @@ func (service *roleService) EnterServer(uid int, rsp *model.EnterServerRsp, req 
 				log.Println("插入角色资源出错", err)
 				return common.New(constant.DBError, "数据库出错")
 			}
-		} else {
-
 		}
+
 		// 数据库操作 与 业务操作，分割，所以，数据库的role等需要一个toModel转换功能
 		rsp.RoleRes = roleRes.ToModel().(model.RoleRes) //
 		rsp.Role = role.ToModel().(model.Role)
@@ -101,4 +100,17 @@ func (service *roleService) GetRoleRes(rid int) (model.RoleRes, error) {
 		return roleRes.ToModel().(model.RoleRes), nil
 	}
 	return model.RoleRes{}, common.New(constant.DBError, "角色资源不存在")
+}
+
+func (service *roleService) Get(rid int) *data.Role {
+	role := &data.Role{}
+	ok, err := db.Engin.Table(role).Where("rid=?", rid).Get(role)
+	if err != nil {
+		log.Println("查询角色出错", err)
+		return nil
+	}
+	if ok {
+		return role
+	}
+	return nil
 }

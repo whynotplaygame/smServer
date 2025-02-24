@@ -1,9 +1,38 @@
 package data
 
 import (
+	"log"
+	"smServer/db"
 	"smServer/server/game/model"
 	"time"
 )
+
+var RoleAttrDao = &roleAttrDao{
+	raChan: make(chan *RoleAttribute, 100),
+}
+
+type roleAttrDao struct {
+	raChan chan *RoleAttribute
+}
+
+func (r *roleAttrDao) running() {
+	for {
+		select {
+		case rr := <-r.raChan:
+			_, err := db.Engin.Table(new(RoleAttribute)).
+				ID(rr.Id).
+				Cols("parent_id", "collect_times", "last_collect_time", "pos_tags").
+				Update(rr)
+			if err != nil {
+				log.Println("update role attribute err:", err)
+			}
+		}
+	}
+}
+
+func init() {
+	go RoleAttrDao.running() // 启动监听
+}
 
 type RoleAttribute struct {
 	Id              int            `xorm:"id pk autoincr"`
@@ -18,4 +47,8 @@ type RoleAttribute struct {
 
 func (r *RoleAttribute) TableName() string {
 	return "role_attribute"
+}
+
+func (r *RoleAttribute) SyncExecute() {
+	RoleAttrDao.raChan <- r
 }

@@ -20,15 +20,24 @@ func Init() {
 	// 加载地图单元格配置
 	gameConfig.MapRes.Load()
 	// 加载城池设施配置
-	gameConfig.FaiclityConfig.Load()
+	gameConfig.FacilityConfig.Load()
 	// 加载武将配置
 	general.General.Load()
 	// 加载技能配置信息
 	gameConfig.Skill.Load()
+
+	//
+	logic.BeforeInit()
+
 	// 加载所有的建筑信息
 	logic.RoleBuildService.Load()
 	// 加载所有的城池信息
 	logic.RoleCityService.Load()
+	// 加载出联盟
+	logic.CoalitionService.Load()
+
+	// 加载所有角色的属性 ？？？感觉这种会站内存。。。。。
+	logic.RoleAttrService.Load()
 
 	initRouter()
 }
@@ -40,4 +49,6 @@ func initRouter() {
 	controller.DefaultArmyController.Router(Router)
 	controller.WarController.Router(Router)
 	controller.SkillController.Router(Router)
+	controller.InteriorCotroller.Router(Router)
+	controller.UnionController.Router(Router)
 }

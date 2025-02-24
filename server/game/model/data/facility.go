@@ -1,5 +1,11 @@
 package data
 
+import (
+	"encoding/json"
+	"smServer/server/game/gameConfig"
+	"time"
+)
+
 type Facility struct {
 	Name         string `json:"name"`
 	PrivateLevel int8   `json:"level"` //等级，外部读的时候不能直接读，要用GetLevel
@@ -16,4 +22,22 @@ type CityFacility struct {
 
 func (c *CityFacility) TableName() string {
 	return "city_facility"
+}
+
+func (c *CityFacility) Facility() []Facility {
+	facilities := make([]Facility, 0)
+	json.Unmarshal([]byte(c.Facilities), &facilities)
+	return facilities
+}
+
+func (f *Facility) GetLevel() int8 {
+	if f.UpTime > 0 {
+		cur := time.Now().Unix()
+		cost := gameConfig.FacilityConfig.CostTime(f.Type, f.PrivateLevel+1)
+		if cur >= f.UpTime+int64(cost) {
+			f.PrivateLevel += 1
+			f.UpTime = 0
+		}
+	}
+	return f.PrivateLevel
 }

@@ -63,7 +63,6 @@ func (g *group) exec(name string, req *WsMsgReq, rsp *WsMsgRsp) {
 
 		h(req, rsp)
 	}
-
 }
 
 type Router struct {

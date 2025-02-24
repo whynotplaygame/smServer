@@ -31,6 +31,23 @@ type roleCityService struct {
 	roleRC map[int][]*data.MapRoleCity //RB 是RoleBuild的意思，key是角色ID
 }
 
+func (service *roleCityService) Load() {
+	// 查询所有的角色城池
+	dbPC := make(map[int]*data.MapRoleCity)
+	db.Engin.Find(dbPC)
+
+	for _, v := range dbPC {
+		posId := global.ToPosition(v.X, v.Y)
+		service.posRC[posId] = v
+		_, ok := service.roleRC[v.RId]
+		if !ok {
+			service.roleRC[v.RId] = make([]*data.MapRoleCity, 0)
+		} else {
+			service.roleRC[v.RId] = append(service.roleRC[v.RId], v)
+		}
+	}
+}
+
 func (service *roleCityService) InitCity(rid int, name string, req *net.WsMsgReq) error {
 	// 根据rid查询，如果没有就创建
 	roleCity := &data.MapRoleCity{}
@@ -69,11 +86,11 @@ func (service *roleCityService) InitCity(rid int, name string, req *net.WsMsgReq
 				// 创建新城池后，更新内存中的城池列表，
 				posId := global.ToPosition(roleCity.X, roleCity.Y)
 				service.posRC[posId] = roleCity
-				_, ok := service.posRC[posId]
+				_, ok := service.roleRC[rid]
 				if !ok {
-					service.roleRC[posId] = make([]*data.MapRoleCity, 0)
+					service.roleRC[rid] = make([]*data.MapRoleCity, 0)
 				} else {
-					service.roleRC[posId] = append(service.roleRC[posId], roleCity)
+					service.roleRC[rid] = append(service.roleRC[rid], roleCity)
 				}
 				// 初始化城池的设施
 				// done
@@ -109,7 +126,7 @@ func (service *roleCityService) isCanBuild(x int, y int) bool {
 		if v.Type == gameConfig.MapBuildSysCity {
 			if x >= v.X-5 &&
 				x <= v.X+5 &&
-				v.Y >= v.Y-5 &&
+				y >= v.Y-5 &&
 				y <= v.Y+5 { // 5格之内
 				return false
 			}
@@ -144,23 +161,6 @@ func (service *roleCityService) GetRoleCitys(id int) ([]model.MapRoleCity, error
 		modelCitys = append(modelCitys, v.ToModel().(model.MapRoleCity))
 	}
 	return modelCitys, nil
-}
-
-func (service *roleCityService) Load() {
-	// 查询所有的角色城池
-	dbPC := make(map[int]*data.MapRoleCity)
-	db.Engin.Find(dbPC)
-
-	for _, v := range dbPC {
-		posId := global.ToPosition(v.X, v.Y)
-		service.posRC[posId] = v
-		_, ok := service.roleRC[v.RId]
-		if !ok {
-			service.roleRC[v.RId] = make([]*data.MapRoleCity, 0)
-		} else {
-			service.roleRC[v.RId] = append(service.roleRC[v.RId], v)
-		}
-	}
 }
 
 func (service *roleCityService) ScanBlock(req *model.ScanBlockReq) ([]model.MapRoleCity, error) {

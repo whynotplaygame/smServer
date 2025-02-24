@@ -28,7 +28,7 @@ func (m *MapRoleCity) ToModel() interface{} {
 	p.X = m.X
 	p.Y = m.Y
 	p.CityId = m.CityId
-	p.UnionId = 0
+	p.UnionId = GetUnion(m.RId)
 	p.UnionName = ""
 	p.ParentId = 0
 	p.MaxDurable = 1000

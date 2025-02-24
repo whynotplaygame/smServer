@@ -119,3 +119,20 @@ func (service *roleBuildService) ScanBlock(req *model.ScanBlockReq) ([]model.Map
 
 	return mrbs, nil
 }
+
+func (service *roleBuildService) getYield(rid int) data.Yield {
+	service.mutex.RLock()
+	defer service.mutex.RUnlock()
+
+	rbs, ok := service.roleRB[rid]
+	var y data.Yield
+	if ok {
+		for _, v := range rbs {
+			y.Iron += v.Iron
+			y.Wood += v.Wood
+			y.Grain += v.Grain
+			y.Stone += v.Stone
+		}
+	}
+	return y
+}

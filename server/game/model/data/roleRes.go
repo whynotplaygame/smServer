@@ -1,6 +1,46 @@
 package data
 
-import "smServer/server/game/model"
+import (
+	"log"
+	"smServer/db"
+	"smServer/server/game/model"
+)
+
+var RoleResDao = &roleResDao{
+	rrChan: make(chan *RoleRes, 100),
+}
+
+type roleResDao struct {
+	rrChan chan *RoleRes
+}
+
+func (d *roleResDao) running() {
+	for {
+		select {
+		case rr := <-d.rrChan:
+			_, err := db.Engin.Table(new(RoleRes)).
+				ID(rr.Id).
+				Cols("wood", "iron", "stone", "grain", "gold").
+				Update(rr)
+			if err != nil {
+				log.Println("update role res err:", err)
+			}
+		}
+	}
+}
+
+func init() {
+	go RoleResDao.running()
+}
+
+// 产量
+type Yield struct {
+	Wood  int
+	Iron  int
+	Stone int
+	Grain int
+	Gold  int
+}
 
 type RoleRes struct {
 	Id     int `xorm:"id pk autoincr"`
@@ -26,11 +66,17 @@ func (r *RoleRes) ToModel() interface{} {
 	p.Wood = r.Wood
 	p.Decree = r.Decree
 
-	p.GoldYield = 100
-	p.IronYield = 100
-	p.StoneYield = 100
-	p.GrainYield = 100
-	p.WoodYield = 100
+	yield := GetYield(r.RId)
+
+	p.GoldYield = yield.Gold
+	p.IronYield = yield.Iron
+	p.StoneYield = yield.Stone
+	p.GrainYield = yield.Grain
+	p.WoodYield = yield.Wood
 	p.DepotCapacity = 10000
 	return p
+}
+
+func (r *RoleRes) SyncExecute() {
+	RoleResDao.rrChan <- r
 }
