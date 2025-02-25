@@ -114,3 +114,16 @@ func (service *roleService) Get(rid int) *data.Role {
 	}
 	return nil
 }
+
+func (service *roleService) GetRoleNickName(rid int) string {
+	role := &data.Role{}
+	ok, err := db.Engin.Table(role).Where("rid=?", rid).Get(role)
+	if err != nil {
+		log.Println("查询角色出错", err)
+		return ""
+	}
+	if ok {
+		return role.NickName
+	}
+	return ""
+}

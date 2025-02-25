@@ -39,3 +39,68 @@ type Member struct {
 	X     int    `json:"x"`
 	Y     int    `json:"y"`
 }
+
+// 联盟信息
+type InfoReq struct {
+	Id int `json:"id"` //联盟id
+}
+
+type InfoRsp struct {
+	Id   int   `json:"id"` //联盟id
+	Info Union `json:"info"`
+}
+
+// 获取申请列表
+type ApplyReq struct {
+	Id int `json:"id"`
+}
+
+type ApplyRsp struct {
+	Id     int         `json:"id"`
+	Applys []ApplyItem `json:"applys"`
+}
+
+type ApplyItem struct {
+	Id       int    `json:"id"`
+	RId      int    `json:"rid"`
+	NickName string `json:"nick_name"`
+}
+
+// 创建联盟
+type CreateReq struct {
+	Name string `json:"name"`
+}
+
+type CreateRsp struct {
+	Id   int    `json:"id"` //联盟id
+	Name string `json:"name"`
+}
+
+// 申请加入联盟
+type JoinReq struct {
+	Id int `json:"id"` //联盟id
+}
+
+type JoinRsp struct {
+}
+
+// 审核
+type VerifyReq struct {
+	Id     int  `json:"id"`     //申请操作的id
+	Decide int8 `json:"decide"` //1是拒绝，2是通过
+}
+
+type VerifyRsp struct {
+	Id     int  `json:"id"`     //申请操作的id
+	Decide int8 `json:"decide"` //1是拒绝，2是通过
+}
+
+// 联盟成员
+type MemberReq struct {
+	Id int `json:"id"` //联盟id
+}
+
+type MemberRsp struct {
+	Id      int      `json:"id"` //联盟id
+	Members []Member `json:"Members"`
+}

@@ -19,12 +19,14 @@ import (
 )
 
 var RoleCityService = &roleCityService{
+	dbRB:   make(map[int]*data.MapRoleCity),
 	posRC:  make(map[int]*data.MapRoleCity),
 	roleRC: make(map[int][]*data.MapRoleCity),
 }
 
 type roleCityService struct {
 	mutex sync.RWMutex
+	dbRB  map[int]*data.MapRoleCity //缓存
 	// 位置 key posId
 	posRC map[int]*data.MapRoleCity
 	// key 角色id
@@ -33,18 +35,17 @@ type roleCityService struct {
 
 func (service *roleCityService) Load() {
 	// 查询所有的角色城池
-	dbPC := make(map[int]*data.MapRoleCity)
-	db.Engin.Find(dbPC)
+	db.Engin.Find(service.dbRB)
 
-	for _, v := range dbPC {
+	for _, v := range service.dbRB {
 		posId := global.ToPosition(v.X, v.Y)
 		service.posRC[posId] = v
 		_, ok := service.roleRC[v.RId]
 		if !ok {
 			service.roleRC[v.RId] = make([]*data.MapRoleCity, 0)
-		} else {
-			service.roleRC[v.RId] = append(service.roleRC[v.RId], v)
 		}
+		service.roleRC[v.RId] = append(service.roleRC[v.RId], v)
+
 	}
 }
 
@@ -190,4 +191,25 @@ func (service *roleCityService) ScanBlock(req *model.ScanBlockReq) ([]model.MapR
 	}
 
 	return mrcs, nil
+}
+
+func (service *roleCityService) GetByRId(rid int) ([]*data.MapRoleCity, bool) {
+	service.mutex.RLock()
+	r, ok := service.roleRC[rid]
+	service.mutex.RUnlock()
+	return r, ok
+}
+
+func (service *roleCityService) GetMainCity(rid int) *data.MapRoleCity {
+	service.mutex.RLock()
+	defer service.mutex.RUnlock()
+	rcs, ok := service.roleRC[rid]
+	if ok {
+		for _, v := range rcs {
+			if v.IsMain == 1 {
+				return v
+			}
+		}
+	}
+	return nil
 }

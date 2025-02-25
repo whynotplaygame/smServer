@@ -31,3 +31,7 @@ func (m *WsMgr) UserLogin(conn WSConn, uid int, token string) {
 	conn.SetProperty("uid", uid)
 	conn.SetProperty("token", token)
 }
+
+func (m *WsMgr) Push() {
+	log.Println("pushing....")
+}

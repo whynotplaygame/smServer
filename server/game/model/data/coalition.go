@@ -3,6 +3,8 @@ package data
 import (
 	"encoding/json"
 	"log"
+	"smServer/db"
+	"smServer/net"
 	"smServer/server/game/model"
 	"time"
 	"xorm.io/xorm"
@@ -12,6 +14,30 @@ const (
 	UnionDismiss = 0 //解散
 	UnionRunning = 1 //运行中
 )
+
+var CoalitionDao = &coalitionDao{
+	cChan: make(chan *Coalition, 1),
+}
+
+type coalitionDao struct {
+	cChan chan *Coalition
+}
+
+func (c *coalitionDao) running() {
+	for {
+		select {
+		case coa := <-c.cChan:
+			//if coa.Id < 0 { // 莫名奇妙的操作。注释掉就对了。
+			db.Engin.Table(coa).ID(coa.Id).Cols("name",
+				"members", "chairman", "vice_chairman", "notice", "state").Update(coa)
+			//}
+		}
+	}
+}
+
+func init() {
+	go CoalitionDao.running()
+}
 
 type Coalition struct {
 	Id           int       `xorm:"id pk autoincr"`
@@ -71,6 +97,23 @@ func (c *CoalitionApply) TableName() string {
 	return "coalition_apply"
 }
 
+func (c *CoalitionApply) SyncExecute() {
+	c.Push()
+}
+
+// 联盟的申请
+func (c *CoalitionApply) ToModel() interface{} {
+	p := model.ApplyItem{}
+	p.RId = c.RId
+	p.Id = c.Id
+	p.NickName = GetRoleNickName(c.RId)
+	return p
+}
+
+func (c *CoalitionApply) Push() {
+	net.Mgr.Push()
+}
+
 const (
 	UnionOpCreate    = 0 //创建
 	UnionOpDismiss   = 1 //解散
@@ -94,4 +137,18 @@ type CoalitionLog struct {
 
 func (c *CoalitionLog) TableName() string {
 	return "coalition_log"
+}
+
+func (c *Coalition) BeforeInsert() {
+	data, _ := json.Marshal(c.MemberArray)
+	c.Members = string(data)
+}
+
+func (c *Coalition) BeforeUpdate() {
+	data, _ := json.Marshal(c.MemberArray)
+	c.Members = string(data)
+}
+
+func (c *Coalition) SyncExecute() {
+	CoalitionDao.cChan <- c
 }

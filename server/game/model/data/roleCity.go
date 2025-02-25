@@ -1,10 +1,35 @@
 package data
 
 import (
+	"log"
+	"smServer/db"
 	"smServer/server/game/model"
 	"sync"
 	"time"
 )
+
+var RoleCityDao = &mapRoleCityDao{
+	rcChan: make(chan *MapRoleCity, 100),
+}
+
+type mapRoleCityDao struct {
+	rcChan chan *MapRoleCity
+}
+
+func (m *mapRoleCityDao) running() {
+	for {
+		select {
+		case rc := <-m.rcChan:
+			if rc.CityId > 0 {
+				//where  city_id = ?
+				_, err := db.Engin.Table(rc).ID(rc.CityId).Update(rc)
+				if err != nil {
+					log.Println("mapRoleCityDao running error", err)
+				}
+			}
+		}
+	}
+}
 
 type MapRoleCity struct {
 	mutex      sync.Mutex `xorm:"-"`
@@ -39,4 +64,8 @@ func (m *MapRoleCity) ToModel() interface{} {
 	p.IsMain = m.IsMain == 1
 	p.OccupyTime = m.OccupyTime.UnixNano() / 1e6
 	return p
+}
+
+func (m *MapRoleCity) SyncExecute() {
+	RoleCityDao.rcChan <- m
 }
